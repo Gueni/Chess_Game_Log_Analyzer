@@ -254,17 +254,46 @@ class ChessAnalyzer(QMainWindow):
             for move_str in parts:
                 if not move_str or '.' in move_str:
                     continue
-                    
+                
                 try:
-                    # Try to parse as UCI first
+                    # First try to parse as UCI (e2e4)
                     if len(move_str) == 4 and move_str.isalpha() and move_str.islower():
-                        move = self.board.parse_uci(move_str)
-                    else:
-                        # Try to parse as SAN
-                        move = self.board.parse_san(move_str)
+                        move = chess.Move.from_uci(move_str)
+                        if move in self.board.legal_moves:
+                            self.moves.append(move)
+                            self.board.push(move)
+                            continue
                     
-                    self.moves.append(move)
-                    self.board.push(move)
+                    # Then try to parse as SAN (e4, Nf3, etc.)
+                    try:
+                        move = self.board.parse_san(move_str)
+                        self.moves.append(move)
+                        self.board.push(move)
+                        continue
+                    except chess.IllegalMoveError:
+                        pass
+                    
+                    # Handle castling notation variations
+                    if move_str.lower() in ['o-o', '0-0']:
+                        move = self.board.parse_san('O-O')
+                        self.moves.append(move)
+                        self.board.push(move)
+                        continue
+                    elif move_str.lower() in ['o-o-o', '0-0-0']:
+                        move = self.board.parse_san('O-O-O')
+                        self.moves.append(move)
+                        self.board.push(move)
+                        continue
+                    
+                    # Handle check/checkmate symbols
+                    clean_move = re.sub(r'[+#]', '', move_str)
+                    if clean_move != move_str:
+                        move = self.board.parse_san(clean_move)
+                        self.moves.append(move)
+                        self.board.push(move)
+                        continue
+                    
+                    print(f"Failed to parse move {move_str}: no matching legal move in {self.board.fen()}")
                 except Exception as e:
                     print(f"Failed to parse move {move_str}: {e}")
         
@@ -302,15 +331,24 @@ class ChessAnalyzer(QMainWindow):
         move_text = ""
         
         for i, move in enumerate(self.moves):
-            san_move = temp_board.san(move)
-            
-            if i % 2 == 0:  # White move
-                move_text += f"{move_number}. {san_move}\t"
-            else:  # Black move
-                move_text += f"{san_move}\n"
-                move_number += 1
+            try:
+                san_move = temp_board.san(move)
                 
-            temp_board.push(move)
+                if i % 2 == 0:  # White move
+                    move_text += f"{move_number}. {san_move}\t"
+                else:  # Black move
+                    move_text += f"{san_move}\n"
+                    move_number += 1
+                    
+                temp_board.push(move)
+            except Exception as e:
+                print(f"Error generating SAN for move {move}: {e}")
+                # Fall back to UCI notation if SAN fails
+                if i % 2 == 0:
+                    move_text += f"{move_number}. {move.uci()}\t"
+                else:
+                    move_text += f"{move.uci()}\n"
+                    move_number += 1
         
         self.move_list.setPlainText(move_text)
         
@@ -324,7 +362,10 @@ class ChessAnalyzer(QMainWindow):
             if self.current_move_index % 2 == 0:  # White move
                 search_str = f"{move_num}. "
             else:  # Black move
-                search_str = f"\t{temp_board.san(self.moves[self.current_move_index])}"
+                try:
+                    search_str = f"\t{temp_board.san(self.moves[self.current_move_index])}"
+                except:
+                    search_str = f"\t{self.moves[self.current_move_index].uci()}"
             
             pos = move_text.find(search_str)
             if pos >= 0:
@@ -427,7 +468,7 @@ class ChessAnalyzer(QMainWindow):
                 if best_move_match:
                     try:
                         move = self.board.parse_uci(best_move_match.group(1))
-                        eval_text += f"\nBest move: {self.board.san(move)}"
+                        eval_text += f"\nBest move: {self.board.san(move) if move in self.board.legal_moves else move.uci()}"
                         
                         # Highlight squares for best move
                         self.highlighted_squares = {move.from_square, move.to_square}
