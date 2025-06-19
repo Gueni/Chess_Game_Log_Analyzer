@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-cross--platform-lightgrey)]()
 
-![Chess Analyzer Screenshot](screenshot.png)
+![Chess Analyzer Screenshot](Screenshot.png)
 
 A Python application for analyzing chess game logs with a graphical interface, move navigation, and Stockfish integration for position analysis.
 
