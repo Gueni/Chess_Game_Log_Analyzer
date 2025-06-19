@@ -7,12 +7,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QPainter, QPixmap, QColor, QFont, QIcon
 import chess
-import chess.svg
-from chess import Board, Move, Piece
-from svglib.svglib import svg2rlg
-from reportlab.graphics import renderPM
-from io import BytesIO
-from PIL import Image
+
 
 class ChessBoardWidget(QWidget):
     def __init__(self, parent=None):
@@ -27,32 +22,56 @@ class ChessBoardWidget(QWidget):
     def load_piece_images(self):
         pieces = {}
         piece_types = ['pawn', 'rook', 'knight', 'bishop', 'queen', 'king']
-        colors = ['white', 'black']
+        colors = ['w', 'b']  # Changed to match your file naming convention
+        
+        # Base directory where the pieces are stored
+        pieces_dir = "D:/WORKSPACE/Chess_Game_Log_Analyzer/pieces"
         
         for color in colors:
             for piece_type in piece_types:
-                key = f"{color[0]}{piece_type[0]}"
-                # Create a simple representation of each piece
-                pixmap = QPixmap(self.square_size, self.square_size)
-                pixmap.fill(Qt.GlobalColor.transparent)
-                painter = QPainter(pixmap)
+                key = f"{color}{piece_type[0]}"  # e.g., 'wp', 'br', etc.
                 
-                # Draw a circle with the piece letter
-                bg_color = QColor(240, 217, 181) if color == 'white' else QColor(181, 136, 99)
-                painter.setBrush(bg_color)
-                painter.drawEllipse(10, 10, self.square_size-20, self.square_size-20)
+                # Construct the filename based on your naming convention
+                filename = f"{piece_type}-{color}.svg"
+                filepath = os.path.join(pieces_dir, filename)
                 
-                # Draw the piece letter
-                font = QFont('Arial', 24)
-                painter.setFont(font)
-                text_color = QColor(0, 0, 0) if color == 'white' else QColor(255, 255, 255)
-                painter.setPen(text_color)
-                
-                letter = piece_type[0].upper() if piece_type != 'knight' else 'N'
-                painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, letter)
-                painter.end()
-                
-                pieces[key] = pixmap
+                if os.path.exists(filepath):
+                    # Load SVG and scale to square size
+                    pixmap = QPixmap(filepath)
+                    if not pixmap.isNull():
+                        pixmap = pixmap.scaled(
+                            self.square_size, 
+                            self.square_size,
+                            Qt.AspectRatioMode.KeepAspectRatio,
+                            Qt.TransformationMode.SmoothTransformation
+                        )
+                        pieces[key] = pixmap
+                    else:
+                        print(f"Failed to load {filepath}")
+                else:
+                    print(f"File not found: {filepath}")
+                    
+                    # Fallback: create a simple representation
+                    pixmap = QPixmap(self.square_size, self.square_size)
+                    pixmap.fill(Qt.GlobalColor.transparent)
+                    painter = QPainter(pixmap)
+                    
+                    # Draw a circle with the piece letter
+                    bg_color = QColor(240, 217, 181) if color == 'w' else QColor(181, 136, 99)
+                    painter.setBrush(bg_color)
+                    painter.drawEllipse(10, 10, self.square_size-20, self.square_size-20)
+                    
+                    # Draw the piece letter
+                    font = QFont('Arial', 24)
+                    painter.setFont(font)
+                    text_color = QColor(0, 0, 0) if color == 'w' else QColor(255, 255, 255)
+                    painter.setPen(text_color)
+                    
+                    letter = piece_type[0].upper() if piece_type != 'knight' else 'N'
+                    painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, letter)
+                    painter.end()
+                    
+                    pieces[key] = pixmap
         return pieces
 
     def paintEvent(self, event):
